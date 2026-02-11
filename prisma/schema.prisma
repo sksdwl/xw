@@ -39,7 +39,7 @@ model Paper {
   title       String
   authors     String
   abstract    String
-  url         String
+  url         String   @unique
   pdfUrl      String?  @map("pdf_url")
   publishedAt DateTime @map("published_at")
   source      String
@@ -62,7 +62,7 @@ model Company {
   title       String
   content     String
   summary     String?
-  url         String?
+  url         String?  @unique
   publishedAt DateTime @map("published_at")
   category    String
   tags        String
@@ -82,7 +82,7 @@ model News {
   content     String
   summary     String?
   coverImage  String?  @map("cover_image")
-  url         String?
+  url         String?  @unique
   source      String
   publishedAt DateTime @map("published_at")
   category    String

@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatar    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  favoritePapers    UserFavoritePaper[]
+  favoriteCompanies UserFavoriteCompany[]
+  favoriteNews      UserFavoriteNews[]
+
+  @@map("users")
+}
+
+model VerificationCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("verification_codes")
+}
+
+model Paper {
+  id          String   @id @default(cuid())
+  title       String
+  authors     String
+  abstract    String
+  url         String
+  pdfUrl      String?  @map("pdf_url")
+  publishedAt DateTime @map("published_at")
+  source      String
+  category    String
+  tags        String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  favoritedBy UserFavoritePaper[]
+
+  @@index([publishedAt])
+  @@index([category])
+  @@map("papers")
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  logo        String?
+  title       String
+  content     String
+  summary     String?
+  url         String?
+  publishedAt DateTime @map("published_at")
+  category    String
+  tags        String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  favoritedBy UserFavoriteCompany[]
+
+  @@index([publishedAt])
+  @@index([category])
+  @@map("companies")
+}
+
+model News {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  summary     String?
+  coverImage  String?  @map("cover_image")
+  url         String?
+  source      String
+  publishedAt DateTime @map("published_at")
+  category    String
+  tags        String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  favoritedBy UserFavoriteNews[]
+
+  @@index([publishedAt])
+  @@index([category])
+  @@map("news")
+}
+
+model UserFavoritePaper {
+  userId    String   @map("user_id")
+  paperId   String   @map("paper_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paper Paper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  @@id([userId, paperId])
+  @@map("user_favorite_papers")
+}
+
+model UserFavoriteCompany {
+  userId    String   @map("user_id")
+  companyId String   @map("company_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([userId, companyId])
+  @@map("user_favorite_companies")
+}
+
+model UserFavoriteNews {
+  userId    String   @map("user_id")
+  newsId    String   @map("news_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  news News @relation(fields: [newsId], references: [id], onDelete: Cascade)
+
+  @@id([userId, newsId])
+  @@map("user_favorite_news")
+}

@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     const [news, total] = await Promise.all([
       prisma.news.findMany({
         where,
-        orderBy: { publishedAt: 'desc' },
+        orderBy: { publishedAt: 'desc' },  // 按发布时间倒序，最新的在前
         skip,
         take: limit,
       }),

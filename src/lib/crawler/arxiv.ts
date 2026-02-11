@@ -43,10 +43,22 @@ function cleanTitle(title: string): string {
   return title.replace(/\s+/g, ' ').trim()
 }
 
-// 抓取最新论文
-export async function fetchLatestPapers(maxResults: number = 50): Promise<ArxivPaper[]> {
+// 获取1个月前的日期
+function getOneMonthAgo(): Date {
+  const date = new Date()
+  date.setMonth(date.getMonth() - 1)
+  return date
+}
+
+// 格式化日期为 arXiv 格式 (YYYYMMDD)
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0].replace(/-/g, '')
+}
+
+// 抓取最新论文（支持分页获取大量数据）
+export async function fetchLatestPapers(maxResults: number = 50, start: number = 0): Promise<ArxivPaper[]> {
   const categoryQuery = AI_CATEGORIES.join(' OR ')
-  const query = `search_query=cat:(${categoryQuery})&sortBy=submittedDate&sortOrder=descending&max_results=${maxResults}`
+  const query = `search_query=cat:(${categoryQuery})&sortBy=submittedDate&sortOrder=descending&max_results=${maxResults}&start=${start}`
   
   try {
     const response = await axios.get(`${ARXIV_API_URL}?${query}`, {
@@ -98,6 +110,47 @@ export async function fetchLatestPapers(maxResults: number = 50): Promise<ArxivP
     console.error('抓取 arXiv 论文失败:', error)
     return []
   }
+}
+
+// 抓取过去1个月的论文（分页获取）
+export async function fetchPapersFromLastMonth(): Promise<ArxivPaper[]> {
+  const oneMonthAgo = getOneMonthAgo()
+  const allPapers: ArxivPaper[] = []
+  const batchSize = 100  // 每批100条
+  let start = 0
+  let hasMore = true
+  
+  console.log(`[Crawler] 开始抓取过去1个月的论文 (从 ${oneMonthAgo.toISOString()} 开始)`)
+  
+  while (hasMore && start < 2000) {  // 最多抓取2000条防止无限循环
+    console.log(`[Crawler] 正在获取第 ${start + 1} - ${start + batchSize} 条论文...`)
+    
+    const papers = await fetchLatestPapers(batchSize, start)
+    
+    if (papers.length === 0) {
+      hasMore = false
+      break
+    }
+    
+    // 检查是否已超过1个月
+    const oldestInBatch = papers[papers.length - 1]?.publishedAt
+    if (oldestInBatch && new Date(oldestInBatch) < oneMonthAgo) {
+      // 只保留1个月内的论文
+      const validPapers = papers.filter(p => new Date(p.publishedAt) >= oneMonthAgo)
+      allPapers.push(...validPapers)
+      console.log(`[Crawler] 已达到1个月时间界限，停止抓取`)
+      break
+    }
+    
+    allPapers.push(...papers)
+    start += batchSize
+    
+    // 避免请求过快
+    await new Promise(resolve => setTimeout(resolve, 1000))
+  }
+  
+  console.log(`[Crawler] 共抓取 ${allPapers.length} 篇过去1个月的论文`)
+  return allPapers
 }
 
 export { mapCategory }

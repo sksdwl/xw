@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { startScheduler, stopScheduler, runNow, getSchedulerStatus } from '@/lib/crawler'
+import { startScheduler, stopScheduler, runNow, runInitialSync, getSchedulerStatus } from '@/lib/crawler'
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'admin-secret-key-change-in-production'
 
@@ -29,11 +29,23 @@ export async function GET(req: NextRequest) {
     prisma.company.count(),
   ])
   
-  // 获取最近更新的数据
+  // 获取最近更新的数据（按时间倒序）
   const [latestPapers, latestNews, latestCompanies] = await Promise.all([
-    prisma.paper.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { title: true, createdAt: true } }),
-    prisma.news.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { title: true, createdAt: true } }),
-    prisma.company.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { title: true, createdAt: true } }),
+    prisma.paper.findMany({ 
+      orderBy: { publishedAt: 'desc' }, 
+      take: 5, 
+      select: { title: true, publishedAt: true }
+    }),
+    prisma.news.findMany({ 
+      orderBy: { publishedAt: 'desc' }, 
+      take: 5, 
+      select: { title: true, publishedAt: true }
+    }),
+    prisma.company.findMany({ 
+      orderBy: { publishedAt: 'desc' }, 
+      take: 5, 
+      select: { title: true, publishedAt: true }
+    }),
   ])
 
   return NextResponse.json({
@@ -68,19 +80,29 @@ export async function POST(req: NextRequest) {
     
     switch (action) {
       case 'start':
-        startScheduler()
-        return NextResponse.json({ code: 0, message: '定时任务已启动' })
+        const startResult = startScheduler()
+        return NextResponse.json({ code: 0, message: startResult.message })
         
       case 'stop':
-        stopScheduler()
-        return NextResponse.json({ code: 0, message: '定时任务已停止' })
+        const stopResult = stopScheduler()
+        return NextResponse.json({ code: 0, message: stopResult.message })
         
       case 'run':
+        // 普通同步 - 只抓取最新数据
         const result = await runNow()
         return NextResponse.json({
           code: 0,
-          message: '手动同步完成',
+          message: '同步完成',
           data: result,
+        })
+        
+      case 'initial':
+        // 首次同步 - 抓取过去1个月的数据
+        const initialResult = await runInitialSync()
+        return NextResponse.json({
+          code: 0,
+          message: initialResult.success ? '首次同步完成' : initialResult.message,
+          data: initialResult.data || initialResult,
         })
         
       default:

@@ -106,7 +106,8 @@ function extractCompanyName(title: string, content: string): string | null {
     'OpenAI', 'Anthropic', 'Google', 'DeepMind', 'Microsoft', 'Meta', 'Facebook',
     'Amazon', 'Apple', 'Nvidia', 'Tesla', 'xAI', 'Mistral', 'Cohere', 'AI21 Labs',
     '百度', '阿里', '腾讯', '字节跳动', '智谱', '月之暗面', 'MiniMax', '零一万物',
-    '科大讯飞', '华为', '商汤', '旷视', '依图',
+    '科大讯飞', '华为', '商汤', '旷视', '依图', '百川智能', '面壁智能', '阶跃星辰',
+    'Stability AI', 'Midjourney', 'Runway', 'Character.AI', 'Perplexity',
   ]
   
   const text = title + ' ' + content
@@ -119,23 +120,34 @@ function extractCompanyName(title: string, content: string): string | null {
   return null
 }
 
-// 从 RSS 抓取新闻
-export async function fetchNewsFromRSS(): Promise<NewsItem[]> {
+// 获取1个月前的日期
+function getOneMonthAgo(): Date {
+  const date = new Date()
+  date.setMonth(date.getMonth() - 1)
+  return date
+}
+
+// 从 RSS 抓取新闻（支持获取过去1个月）
+export async function fetchNewsFromRSS(daysBack: number = 30): Promise<NewsItem[]> {
+  const cutoffDate = new Date()
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack)
+  
   const allNews: NewsItem[] = []
   
   for (const source of [...NEWS_SOURCES, ...TECH_SOURCES]) {
     try {
+      console.log(`[Crawler] 正在抓取新闻源: ${source.name}...`)
       const feed = await rssParser.parseURL(source.url)
       
-      for (const item of feed.items.slice(0, 10)) { // 每个源取前10条
+      for (const item of feed.items) {
         if (!item.title || !item.link) continue
         
-        const { category, tags } = categorizeByKeywords(item.title, item.contentSnippet || '')
-        
-        // 只取最近24小时的新闻
         const publishedAt = item.pubDate ? new Date(item.pubDate) : new Date()
-        const hoursAgo = (Date.now() - publishedAt.getTime()) / (1000 * 60 * 60)
-        if (hoursAgo > 24) continue
+        
+        // 只取指定天数内的新闻
+        if (publishedAt < cutoffDate) continue
+        
+        const { category, tags } = categorizeByKeywords(item.title, item.contentSnippet || '')
         
         allNews.push({
           title: item.title,
@@ -148,25 +160,37 @@ export async function fetchNewsFromRSS(): Promise<NewsItem[]> {
           tags,
         })
       }
+      
+      // 避免请求过快
+      await new Promise(resolve => setTimeout(resolve, 500))
     } catch (error) {
       console.error(`抓取 ${source.name} 失败:`, error)
     }
   }
   
-  // 按时间排序
+  // 按时间排序（最新的在前）
   return allNews.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
 }
 
-// 从 RSS 抓取公司动态
-export async function fetchCompanyUpdates(): Promise<CompanyUpdate[]> {
+// 从 RSS 抓取公司动态（支持获取过去1个月）
+export async function fetchCompanyUpdates(daysBack: number = 30): Promise<CompanyUpdate[]> {
+  const cutoffDate = new Date()
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack)
+  
   const updates: CompanyUpdate[] = []
   
   for (const source of TECH_SOURCES) {
     try {
+      console.log(`[Crawler] 正在抓取公司动态源: ${source.name}...`)
       const feed = await rssParser.parseURL(source.url)
       
-      for (const item of feed.items.slice(0, 10)) {
+      for (const item of feed.items) {
         if (!item.title || !item.link) continue
+        
+        const publishedAt = item.pubDate ? new Date(item.pubDate) : new Date()
+        
+        // 只取指定天数内的动态
+        if (publishedAt < cutoffDate) continue
         
         const companyName = extractCompanyName(item.title, item.contentSnippet || '')
         if (!companyName) continue // 只保留能识别出公司的
@@ -177,10 +201,6 @@ export async function fetchCompanyUpdates(): Promise<CompanyUpdate[]> {
         if (!['PRODUCT', 'FUNDING', 'ACQUISITION', 'PARTNERSHIP', 'HIRING'].includes(category)) {
           continue
         }
-        
-        const publishedAt = item.pubDate ? new Date(item.pubDate) : new Date()
-        const hoursAgo = (Date.now() - publishedAt.getTime()) / (1000 * 60 * 60)
-        if (hoursAgo > 24) continue
         
         updates.push({
           name: companyName,
@@ -193,6 +213,8 @@ export async function fetchCompanyUpdates(): Promise<CompanyUpdate[]> {
           tags: [...tags, companyName],
         })
       }
+      
+      await new Promise(resolve => setTimeout(resolve, 500))
     } catch (error) {
       console.error(`抓取公司动态失败:`, error)
     }

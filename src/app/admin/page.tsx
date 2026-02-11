@@ -10,13 +10,16 @@ interface Stats {
 
 interface LatestItem {
   title: string
-  createdAt: string
+  publishedAt: string
 }
 
 interface CrawlerStatus {
   isRunning: boolean
+  isTaskRunning: boolean
   schedule: string
   description: string
+  lastRunTime?: string
+  lastResult?: any
 }
 
 export default function AdminPage() {
@@ -55,7 +58,6 @@ export default function AdminPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    // 简单验证，实际应该调用后端验证
     document.cookie = `admin_token=${password}; path=/`
     setIsAuthenticated(true)
   }
@@ -142,19 +144,40 @@ export default function AdminPage() {
             <div className={`text-lg font-bold ${status?.isRunning ? 'text-green-600' : 'text-gray-400'}`}>
               {status?.isRunning ? '运行中' : '已停止'}
             </div>
+            {status?.lastRunTime && (
+              <div className="text-xs text-gray-400 mt-1">
+                上次: {new Date(status.lastRunTime).toLocaleTimeString('zh-CN')}
+              </div>
+            )}
           </div>
         </div>
 
         {/* 控制按钮 */}
         <div className="bg-white rounded-xl p-6 shadow-sm mb-8">
           <h2 className="text-lg font-bold text-gray-900 mb-4">爬虫控制</h2>
+          
+          {/* 首次同步按钮（抓取过去1个月） */}
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <h3 className="font-medium text-amber-900 mb-2">首次同步</h3>
+            <p className="text-sm text-amber-700 mb-3">
+              抓取过去1个月的全部数据（论文、新闻、公司动态），此操作可能需要几分钟
+            </p>
+            <button
+              onClick={() => handleAction('initial')}
+              disabled={isLoading}
+              className="px-6 py-2 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+            >
+              {isLoading ? '同步中...' : '首次同步（过去1个月）'}
+            </button>
+          </div>
+
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => handleAction('run')}
               disabled={isLoading}
               className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              {isLoading ? '执行中...' : '立即同步'}
+              {isLoading ? '执行中...' : '立即同步（最新）'}
             </button>
             <button
               onClick={() => handleAction('start')}
@@ -171,21 +194,22 @@ export default function AdminPage() {
               停止定时任务
             </button>
           </div>
+          
           <p className="mt-4 text-sm text-gray-500">
-            定时任务设置: {status?.description} ({status?.schedule})
+            {status?.description} ({status?.schedule})
           </p>
         </div>
 
         {/* 最新数据 */}
         <div className="grid md:grid-cols-3 gap-6">
           <div className="bg-white rounded-xl p-6 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-4">最新论文</h3>
+            <h3 className="font-bold text-gray-900 mb-4">最新论文（按发布时间）</h3>
             <div className="space-y-3">
               {latest?.papers.map((item, i) => (
-                <div key={i} className="text-sm">
+                <div key={i} className="text-sm border-b border-gray-100 pb-2 last:border-0">
                   <div className="text-gray-900 line-clamp-2">{item.title}</div>
                   <div className="text-gray-400 text-xs mt-1">
-                    {new Date(item.createdAt).toLocaleString('zh-CN')}
+                    {new Date(item.publishedAt).toLocaleString('zh-CN')}
                   </div>
                 </div>
               ))}
@@ -195,10 +219,10 @@ export default function AdminPage() {
             <h3 className="font-bold text-gray-900 mb-4">最新新闻</h3>
             <div className="space-y-3">
               {latest?.news.map((item, i) => (
-                <div key={i} className="text-sm">
+                <div key={i} className="text-sm border-b border-gray-100 pb-2 last:border-0">
                   <div className="text-gray-900 line-clamp-2">{item.title}</div>
                   <div className="text-gray-400 text-xs mt-1">
-                    {new Date(item.createdAt).toLocaleString('zh-CN')}
+                    {new Date(item.publishedAt).toLocaleString('zh-CN')}
                   </div>
                 </div>
               ))}
@@ -208,10 +232,10 @@ export default function AdminPage() {
             <h3 className="font-bold text-gray-900 mb-4">最新公司动态</h3>
             <div className="space-y-3">
               {latest?.companies.map((item, i) => (
-                <div key={i} className="text-sm">
+                <div key={i} className="text-sm border-b border-gray-100 pb-2 last:border-0">
                   <div className="text-gray-900 line-clamp-2">{item.title}</div>
                   <div className="text-gray-400 text-xs mt-1">
-                    {new Date(item.createdAt).toLocaleString('zh-CN')}
+                    {new Date(item.publishedAt).toLocaleString('zh-CN')}
                   </div>
                 </div>
               ))}

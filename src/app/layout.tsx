@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Navbar } from "@/components/Navbar";
+import { CronInitializer } from "@/components/CronInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "AI 资讯中心 - 全球人工智能资讯聚合平台",
-  description: "每日更新全球人工智能论文、公司动态、行业新闻",
+  description: "每日更新 AI 领域最新论文、公司动态和行业新闻",
 };
 
 export default function RootLayout({
@@ -30,6 +31,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-screen`}
       >
         <AuthProvider>
+          <CronInitializer />
           <Navbar />
           <main className="pt-16">
             {children}
